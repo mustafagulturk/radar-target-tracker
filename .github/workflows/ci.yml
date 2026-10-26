@@ -52,6 +52,10 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure --parallel 4
 
+      - name: Benchmark smoke run
+        if: matrix.build_type == 'Release'
+        run: ./build/tracker_benchmark --runs 5 | tee -a "$GITHUB_STEP_SUMMARY"
+
   sanitizers:
     name: ${{ matrix.name }}
     runs-on: ubuntu-24.04

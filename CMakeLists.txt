@@ -53,6 +53,10 @@ add_executable(tracker_cli apps/tracker_cli/main.cpp)
 target_link_libraries(tracker_cli PRIVATE radar_core)
 radar_set_project_options(tracker_cli)
 
+add_executable(tracker_benchmark apps/tracker_benchmark/main.cpp)
+target_link_libraries(tracker_benchmark PRIVATE radar_sim)
+radar_set_project_options(tracker_benchmark)
+
 if(RADAR_BUILD_GUI)
     add_subdirectory(apps/radar_display)
 endif()
