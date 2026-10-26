@@ -10,7 +10,9 @@ Dönen bir gözetleme radarının ürettiği sahte ölçümleri UDP üzerinden a
 
 *A C++17 radar target tracking simulator: a rotating-radar model streams noisy plots over UDP, a multithreaded pipeline runs multi-target Kalman tracking with gating and track management, and a Qt PPI display renders the picture. Built with CMake, tested with GoogleTest, checked by GitHub Actions (GCC/Clang, ASan/UBSan, TSan).*
 
-![Radar PPI ekranı](docs/screenshot.png)
+![Radar PPI ekranı: dönen tarama ve canlı izler](docs/demo.gif)
+
+*10 saniyelik kayıt: 30 RPM tarama, 11 hedef, tur başına ~20 sahte alarm. Sağda iz tablosu, altta canlı hat istatistikleri.*
 
 ## Öne çıkanlar
 
@@ -80,6 +82,34 @@ Süreç gürültüsü sürekli beyaz gürültü ivme modelinden gelir (`q = 300 
 
 Tüm alanlar ağ bayt sırasındadır (big-endian). Datagramlar 1400 baytı geçmez; fazla plot olursa aynı sektör birden çok pakete bölünür.
 
+## Ölçülmüş sonuçlar
+
+`tracker_benchmark`, izleyiciyi simülatörün bildiği **gerçek konumlara** karşı ölçer. Her senaryo 100 farklı tohumla 120'şer saniye koşulur. Ölçümler gerçek tel formatından geçer (encode → decode → `TrackManager`), yani süre ölçümü alıcı ve izleyici thread'lerinin datagram başına yaptığı işin aynısıdır.
+
+Sensör: Pd 0.9, tur başına 20 sahte alarm, σr = 30 m, σθ = 0.3°, 2 s tarama periyodu. Release derleme, tek çekirdek (Intel Xeon 2.8 GHz).
+
+| Senaryo | Ham plot hatası (m) | İz konum RMSE (m) | Hız RMSE (m/s) | İz kapsama | ID değişimi / koşu | Sahte iz / tur | Datagram ort. (µs) | Datagram p99 (µs) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Düz uçuş, 250 m/s | 102 | 82 | 23.8 | %99.8 | 0.14 | 0.14 | 6.0 | 21.6 |
+| Kesişen iki hedef, 90° | 82 | 67 | 19.8 | %99.8 | 0.19 | 0.14 | 5.6 | 13.6 |
+| Manevra, 3°/s dönüş | 120 | 108 | 45.5 | %99.9 | 0.09 | 0.13 | 5.7 | 14.5 |
+| Standart senaryo, 11 hedef | 119 | 92 | 27.9 | %99.9 | 0.78 | 0.18 | 7.3 | 23.8 |
+
+Nasıl okunur:
+
+- **Ham plot hatası:** Tek bir radar ölçümünün o menzildeki beklenen konum hatası, `√(σr² + (r·σθ)²)`. Karşılaştırma için referanstır.
+- **İz konum RMSE:** Doğrulanmış izin güncelleme sonrası (filtrelenmiş) kestirimi ile gerçek konum arasındaki fark. Kalman filtresi ham ölçüme göre hatayı %10–20 düşürüyor. Daha fazla yumuşatma mümkün, ama 3°/s dönen hedefi kaybetmemek için süreç gürültüsü bilinçli olarak yüksek tutuldu (bkz. IMM).
+- **İz kapsama:** Kapsama alanındaki hedeflerin, ilk 10 saniyelik iz başlatma süresinden sonra, tur başına doğrulanmış bir izle eşleştiği oran.
+- **ID değişimi:** Bir hedefin iz kimliğinin değiştiği durum sayısı (120 saniyede, koşu başına ortalama).
+- **Sahte iz:** Hiçbir gerçek hedefe karşılık gelmeyen doğrulanmış iz sayısı (tur başına ortalama).
+- **Datagram süresi:** Bir paketin çözülmesi, tüm izlerin tahmini, kapılama, eşleştirme ve güncelleme dahil toplam süre. Saniyede 36 paketlik yük, bir çekirdeğin binde birinden azını kullanıyor.
+
+Tekrar üretmek için:
+
+```bash
+./build/tracker_benchmark --runs 100
+```
+
 ## Derleme
 
 Gereksinimler: Linux, CMake ≥ 3.16, C++17 derleyici (GCC 9+ / Clang 10+), Qt 6 Widgets (yalnızca GUI için). GoogleTest sistemde yoksa CMake otomatik indirir.
@@ -115,6 +145,8 @@ ctest --test-dir build --output-on-failure
 ./build/radar_simulator --targets 6 --clutter 20
 ```
 
+![Radar PPI ekranı, seçili iz ve bilgi kutusu](docs/screenshot.png)
+
 Ekran olmayan bir makinede GUI yerine başsız izleyiciyi kullanabilirsiniz:
 
 ```bash
@@ -146,6 +178,7 @@ src/core/             Kalman, iz yönetimi, protokol, UDP, işleme hattı
 src/sim/              Hedef, sensör ve senaryo modelleri
 apps/radar_simulator/ UDP plot üreticisi
 apps/tracker_cli/     Başsız izleyici
+apps/tracker_benchmark/ Gerçek konuma karşı Monte Carlo ölçümü
 apps/radar_display/   Qt PPI ekranı
 tests/                GoogleTest
 .github/workflows/    CI: GCC/Clang × Debug/Release, ASan/UBSan, TSan, clang-format
