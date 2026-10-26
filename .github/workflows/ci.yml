@@ -26,9 +26,16 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y -o Acquire::Retries=3 --no-install-recommends \
-            ninja-build qt6-base-dev libgl1-mesa-dev libgtest-dev clang
+          # Mirrors occasionally stall; give each attempt a deadline and retry.
+          for attempt in 1 2 3; do
+            timeout 240 sudo apt-get update &&
+            timeout 300 sudo apt-get install -y -o Acquire::Retries=3 --no-install-recommends \
+              ninja-build qt6-base-dev libgl1-mesa-dev libgtest-dev && break
+            echo "apt attempt $attempt failed, retrying"
+          done
+          dpkg -s qt6-base-dev libgtest-dev > /dev/null
+          # clang ships with the runner image; this only verifies it.
+          clang++ --version
 
       - name: Select compiler
         run: |
@@ -74,8 +81,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y -o Acquire::Retries=3 --no-install-recommends ninja-build libgtest-dev
+          for attempt in 1 2 3; do
+            timeout 240 sudo apt-get update &&
+            timeout 300 sudo apt-get install -y -o Acquire::Retries=3 --no-install-recommends \
+              ninja-build libgtest-dev && break
+            echo "apt attempt $attempt failed, retrying"
+          done
+          dpkg -s libgtest-dev > /dev/null
 
       - name: Configure
         run: >
