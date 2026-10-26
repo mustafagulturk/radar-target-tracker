@@ -14,6 +14,7 @@ jobs:
   build-and-test:
     name: ${{ matrix.compiler }} / ${{ matrix.build_type }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -26,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          sudo apt-get install -y -o Acquire::Retries=3 --no-install-recommends \
             ninja-build qt6-base-dev libgl1-mesa-dev libgtest-dev clang
 
       - name: Select compiler
@@ -54,6 +55,7 @@ jobs:
   sanitizers:
     name: ${{ matrix.name }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -69,7 +71,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build libgtest-dev
+          sudo apt-get install -y -o Acquire::Retries=3 --no-install-recommends ninja-build libgtest-dev
 
       - name: Configure
         run: >
@@ -91,6 +93,7 @@ jobs:
   format:
     name: clang-format
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Install clang-format
